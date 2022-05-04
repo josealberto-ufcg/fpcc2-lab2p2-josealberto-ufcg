@@ -1,0 +1,188 @@
+---
+title: "FPCCII - Lab2.2: Correlacao em estimativas e tempo"
+author: "José Alberto Souza Paulino"
+Disciplina: "FPCC II"
+date: "03/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggbeeswarm)
+theme_set(theme_bw())
+library(gridExtra)
+library(cowplot)
+library(lubridate)
+library(corrplot)
+```
+
+```{r}
+climas = read_csv(here::here("data/clima_cg_jp-semanal.csv"), col_types = "cTdddddd")
+```
+
+## **\>\> ATIVIDADE: LAB2.2**
+
+```{r}
+climas_temp = climas %>% 
+  mutate(temp_anterior = lag(tmedia, n = 1)) 
+climas_temp = climas_temp %>%
+    mutate(temp_anterior_8 = lag(tmedia, n = 8))
+climas_temp = climas_temp %>%
+    mutate(temp_anterior_52 = lag(tmedia, n = 52))
+
+glimpse(climas_temp)
+```
+
+### Questão 01: descrever a relação entre a temperatura de uma semana e a temperatura da semana passada nas duas cidades.
+
+```{r}
+climas_temp %>%
+    filter(!is.na(temp_anterior)) %>%
+    ggplot(aes(x = tmedia, y = temp_anterior, color = cidade)) + 
+    facet_wrap(~cidade, nrow = 2) +
+    labs(x='Temperatura média semanal', y= "Temperatura média da semana anteior")+
+    geom_rug() +
+    geom_jitter(size = 1, alpha = 0.1, color = 'darkgray') +
+    geom_smooth(formula = y ~ x, method = "lm") +
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("royalblue","seagreen"))
+```
+
+Há uma correlação forte, linear e positiva entre as temperaturas de uma semana e a semana antecedente, nas duas cidades. Campina Grande possui uma faixa de valores maior, no entanto, para as duas cidades, observa-se a tendência de que se uma semana n(x) tem uma determinada temperatura média, se espera que a semana subsequente seja tão fria ou quente quanto a semana n(x), ou seja, é incomum grandes variações de temperatura entre as semanas. As impressões sobre essa relação são reforçadas nas tabelas de correlação abaixo, obtidas pelo método de Pearson.
+
+```{r}
+mydata_cg <- climas_temp %>%
+    filter(!is.na(temp_anterior)) %>%
+    filter(cidade == "Campina Grande") %>%
+    select(tmedia, temp_anterior)
+
+mydata_jp <- climas_temp %>%
+    filter(!is.na(temp_anterior)) %>%
+    filter(cidade == "João Pessoa") %>%
+    select(tmedia, temp_anterior)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+print("Correlação entre temperaturas em Campina Grande")
+cor(mydata_cg, method = "pearson")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+print("Correlação entre temperaturas em João Pessoa")
+cor(mydata_jp, method = "pearson")
+```
+
+
+
+### Questão 02: descrever a relação entre temperatura e chuvas nas semanas em que choveu nas duas cidades.
+
+```{r}
+climas_temp %>%
+    filter(chuva > 0) %>%
+    ggplot(aes(x = tmedia, y = chuva, color = cidade)) + 
+    #geom_point()+
+    facet_wrap(~cidade, nrow = 2, ncol = 1, scales = "free_x") +
+    geom_jitter(size = 1.5, alpha = 0.7) +
+    geom_smooth(formula = y ~ x, method = "lm")+
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("royalblue","seagreen"))+
+    labs(x='Temperatura média semanal', y= "Volume semanal de chuva (escala de log base 10)")+
+    scale_y_log10()
+
+```
+
+As visualizações mostram que as relações, nas duas cidades, são linear e negativas. Isso de fato condiz com uma observação empírica, em que há uma tendência de que dias mais chuvosos, normalmente são mais frios. Mas nem sempre é assim, e essa observação é reforçadas porque ambos os gráficos apontam uma correlação fraca, cuja nuvem de pontos está dispersa em quase toda faixa de valores, principalmente me Campina Grande, em que há semanas com pouca chuva tanto em temperaturas baixas como em altas.
+
+### Questão Bônus: comparar a relação que foi encontrada na primeira questão com a relação entre a temperatura de uma semana e a de 8 semanas antes. Realizar a mesma comparação com a temperatura de 1 ano antes (52 semanas).
+
+```{r}
+v1 <- climas_temp %>%
+    filter(!is.na(temp_anterior), cidade == "Campina Grande") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm", color='royalblue')+
+    scale_color_manual(breaks = c("Campina Grande"), values=c("royalblue"))
+v2 <- climas_temp %>%
+    filter(!is.na(temp_anterior), cidade == "João Pessoa") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm",  color='seagreen')+
+    scale_color_manual(breaks = c("João Pessoa"), values=c("seagreen"))
+v3 <- climas_temp %>%
+    filter(!is.na(temp_anterior_8), cidade == "Campina Grande") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior_8, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm", color='royalblue')+
+    scale_color_manual(breaks = c("Campina Grande"), values=c("royalblue"))
+v4 <- climas_temp %>%
+    filter(!is.na(temp_anterior_8), cidade == "João Pessoa") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior_8, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm",  color='seagreen')+
+    scale_color_manual(breaks = c("João Pessoa"), values=c("seagreen"))
+v5 <- climas_temp %>%
+    filter(!is.na(temp_anterior_52), cidade == "Campina Grande") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior_52, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm", color='royalblue')+
+    scale_color_manual(breaks = c("Campina Grande"), values=c("royalblue"))
+v6 <- climas_temp %>%
+    filter(!is.na(temp_anterior_52), cidade == "João Pessoa") %>%
+    ggplot(aes(x = tmedia, y = temp_anterior_52, color = cidade)) + 
+    geom_rug() +
+    labs(x = NULL, y = NULL) +
+    geom_jitter(size = 1.5, alpha = 0.3, color = 'darkgray')+
+    geom_smooth(formula = y ~ x, method = "lm",  color='seagreen')+
+    scale_color_manual(breaks = c("João Pessoa"), values=c("seagreen"))
+
+
+plot_grid(v1, v2, v3, v4, v5, v6, ncol = 2, nrow= 3, labels = c('A', 'B', 'C', 'D', 'E', 'F'), label_y = 0.9, label_x = 0.1) 
+```
+
+O conjunto de visualizações acima mostra um comparativo em três cenários, para ambas as cidades, das médias de temperaturas em relação a semanas anteriores. As visualizações que seguem abaixo, corroboram as observações.
+
+-   As visualizações **A** e **B**, correspondem ao gráfico da média de temperatura de uma semana em relação a média de temperatura da semana anterior, em cada cidade. *As impressões sobre esse cenário já foram descritas na questão 01*;
+
+-   As visualizações **C** e **D**, correspondem ao gráfico da média de temperatura de uma semana em relação a média de temperatura de 8 semanas atrás (2 meses), em cada cidade. *Nesse cenário, se observa maior dispersão da nuvem de ponto, além de uma correlação fraca em ambas as cidades. Também há um agrupamento muito mais denso em altas temperaturas, ou seja, há uma tendência de que haja uma relação entre as temperaturas de semanas muito quentes com a temperatura de 2 meses atrás. Para semanas muito frias essa característica não é observada, praticamente inexiste correlação*;
+
+-   As visualizações **E** e **F**, correspondem ao gráfico da média de temperatura de uma semana em relação a média de temperatura de 52 semanas atrás (1 ano), em cada cidade. *Essa relação se apresenta forte em João Pessoa, mas em Campina Grande, há uma dispersão maior dos dados, no entanto, ambas acompanham a tendência de que a temperatura média em uma semana se assemelha a temperatura média no mesmo período do ano anterior*.
+
+
+```{r}
+mydata_cg2 <- climas_temp %>%
+    filter(!is.na(temp_anterior)) %>%
+    filter(!is.na(temp_anterior_8)) %>%
+    filter(!is.na(temp_anterior_52)) %>%
+    filter(cidade == "Campina Grande") %>%
+    select(tmedia, temp_anterior, temp_anterior_8, temp_anterior_52)
+
+mydata_jp2 <- climas_temp %>%
+    filter(!is.na(temp_anterior)) %>%
+    filter(!is.na(temp_anterior_8)) %>%
+    filter(!is.na(temp_anterior_52)) %>%
+    filter(cidade == "João Pessoa") %>%
+    select(tmedia, temp_anterior, temp_anterior_8, temp_anterior_52)
+```
+
+```{r}
+
+corrplot(cor(mydata_cg2), method = "pie", title = "Correlações entre temperaturas das semanas em Campina Grande", mar=c(0,0,1,0))
+corrplot(cor(mydata_jp2), method = "pie", title = "Correlações entre temperaturas das semanas em João Pessoa", mar=c(0,0,1,0))
+
+```
+

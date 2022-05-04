@@ -1,0 +1,145 @@
+---
+title: "Lab2.1 - José Alberto: Temperatura JP x CG"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggbeeswarm)
+theme_set(theme_bw())
+library(gridExtra)
+```
+
+```{r}
+climas = read_csv(here::here("data/clima_cg_jp-semanal.csv"), 
+                  col_types = "cTdddddd")
+
+glimpse(climas)
+```
+
+**ALUNO: JOSÉ ALBERTO SOUZA PAULINO**
+
+**DISCIPLINA: FPCC II**
+
+## **\>\> ATIVIDADE: LAB2.1**
+
+## 
+
+### Q1: Qual a cidade é mais quente? Isso muda se considerarmos apenas o período de janeiro e fevereiro (pico do verão)?
+
+De acordo com a temperatura médias observada entre os anos de 1993 e 2019, João Pessoa é predominantemente mais quente que Campina Grande. As médias de temperatura em Campina Grande raramente ultrapassam 27 graus, ao passo que a maior concentração de temperaturas de João Pessoa está acima dessa marca. A diferença de temperatura entre as cidades também se mantem entre os meses de Janeiro e fevereiro, que correspondem ao pico do verão.
+
+Ademais, percebe-se que a distribuição das temperaturas médias possui variação menor em João Pessoa, principalmente no pico do verão. Nesse período, a variação em Campina Grande é de até 5 graus (\~23º à \~28º).
+
+```{r}
+climas_temp <- climas %>%
+    mutate(periodo = if_else(mes <= 2, 'Pico do verão', 'Demais meses'))
+
+climas_temp %>%
+    ggplot(mapping = aes(x = tmedia, y = cidade, color = periodo, shape = periodo)) +
+    #geom_point()+
+    geom_jitter(height = .3, alpha = .7)+
+    labs(x='Temperaturas médias em relação ao período do ano', y= "Cidades")+
+    scale_color_manual(breaks = c("Demais meses", "Pico do verão"), values=c("paleturquoise3","orangered3"))
+```
+
+### Q2: Quais os meses mais quentes e mais frios? Como você descreveria a temperatura das festas juninas das cidades nos últimos anos?
+
+A média das temperaturas entre 1993 e 2019 indica que os meses mais frios, considerando as duas cidades, são junho e julho, enquanto os meses mais quentes são novembro, dezembro, janeiro, fevereiro e março.
+
+No período de festas juninas, a média de temperatura em JP caiu gradativamente entre 2016 e 2018. Já na cidade de Campina grande, houve uma pequena variação entre o ano de 2016 e 2017, e a temperatura se manteve em variações em 2018.
+
+```{r}
+
+p1 <- climas_temp %>%
+    group_by(mes)%>%
+    filter(ano > 2017) %>%
+    summarise(MediaTemper = mean(tmedia))%>%
+    ggplot(mapping = aes(x = mes, y = MediaTemper)) +
+    geom_bar(stat = "identity", fill='lightblue')+
+    scale_x_continuous(breaks = 1:12, limits = c(0.5,12.5)) +
+    scale_y_continuous(breaks = seq(0, 30, by = 3)) +
+    labs(x='Meses do ano', y= "Média das Temperaturas")+
+    ggtitle("Média das temperaturas mês a mês entre 1993 e 2019")
+    
+p2 <- climas_temp %>%
+    filter(ano > 2015) %>%
+    filter(mes == 6) %>%
+    ggplot(mapping = aes(x = ano, y = tmedia)) +
+        geom_bar(stat = "identity", aes(fill = cidade), position = "dodge")+
+        scale_x_continuous(breaks = )+
+        scale_y_continuous(breaks = seq(0, 30, by = 3)) +
+        labs(x='Média das temperaturas por cidade', y= "Temperatura")+
+        scale_color_manual(breaks = c("Campina Grande", "João Pessoa"),
+                           values=c("paleturquoise3","orangered3"))+
+        ggtitle("Média das temperaturas no mês de junho entre 2016 e 2018")
+
+grid.arrange(p1, p2, nrow = 2)
+```
+
+### Q3: Quanto chove por semana em JP e CG? Descreva a distribuição do volume de chuvas para as cidades?
+
+De acordo com a distribuição dos histogramas referentes ao volume de chuvas por semana, chove muito mais em João Pessoa. Essas conclusões são obtidas observando que o número de semanas sem chuves em Campina Grande é maior do que em João Pessoa.
+
+Ambas as distribuições são de viés positivo mas a cauda da distribuição é muito mais longa para a cidade de João Pessoa, o que reforça que chove com mais frequência e mais intensidade nessa nessa cidade.
+
+```{r}
+climas_temp %>%
+    ggplot(mapping = aes(x = chuva)) +
+    facet_wrap(~cidade, ncol=2)+
+    geom_histogram(binwidth = 20, aes(fill=cidade))
+
+```
+
+### Q4: O volume de chuvas varia mais ou menos que a temperatura das cidades?
+
+1.  A variabilidade do volume de chuvas possui comportamento atípico, com Q1 e Q2 dos boxplots com valores muito próximos de zero, além de apresentar muitos outliers. É uma característica própria do dado observado, haja vista que chove muito pouco (ou não chove) todas as semanas em ambas as cidades.
+
+2.  A variação das distribuições ocorre de forma inversa de acordo com os atributos observados em cada cidade, como observado nos gráficos abaixo. Enquanto a variação de chuva é muito maior em João Pessoa do que em Campina Grande, a temperatura varia muito mais em Campina Grande.
+
+```{r}
+g1 <- climas_temp %>%
+    ggplot(aes( color = cidade)) +
+    geom_boxplot(aes(x = cidade, y = chuva))+
+    labs(y = "Volume de chuvas (em mm)", title = "Variação do Volume de chuva por cidade", color = "Cidade")+
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("paleturquoise3","orangered3")) +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())
+
+g2 <- climas_temp %>%
+    ggplot(aes( color = cidade)) +
+    geom_boxplot(aes(x = cidade, y = tmedia))+
+    labs(y = "Média de temperatura (em ºC)", title = "Variação de temperatura médias por cidade", color = "Cidade") +
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("paleturquoise3","orangered3"))+
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.title.x = element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank())
+
+grid.arrange(g1, g2, ncol = 2)
+```
+
+```{r read}
+f1 <- climas_temp %>% 
+    ggplot(aes(x = chuva, y = cidade, color = cidade)) +
+    geom_quasirandom(groupOnX=FALSE) +
+    labs(y = "Volume de chuvas (em mm)", title = "Variação do volume de chuva por cidade", color = "Cidade")+
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("paleturquoise3","orangered3")) +
+    theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) 
+
+f2 <- climas_temp %>% 
+    ggplot(aes(x = tmedia, y = cidade, color = cidade)) +
+    geom_quasirandom(groupOnX=FALSE) +
+    labs(y = "Média de temperatura (em ºC)", title = "Variação de temperatura médias por cidade", color = "Cidade") +
+    scale_color_manual(breaks = c("Campina Grande", "João Pessoa"), values=c("paleturquoise3","orangered3"))+
+    theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank())
+
+grid.arrange(f1, f2, nrow = 2)
+```
